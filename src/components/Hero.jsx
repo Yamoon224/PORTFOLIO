@@ -55,13 +55,13 @@ export default function Hero() {
             transition={{ duration: 0.5, delay: 0.2 }}
             className="w-full md:w-1/2 order-1 md:order-2 flex justify-center md:justify-end"
           >
-            <div className="relative hexagon bg-gradient-to-br from-primary/20 to-pink-500/20 w-64 h-64 md:w-80 md:h-80 overflow-hidden flex items-center justify-center">
+            <div className="relative rounded-full bg-gradient-to-br from-primary/20 to-pink-500/20 w-64 h-64 md:w-80 md:h-80 overflow-hidden flex items-center justify-center">
               <img
                 src="/images/profile.png?height=100&width=400"
                 alt="Yamoussa KEITA"
-                className="object-cover w-full h-full"
+                className="object-cover w-full h-full rounded-full"
               />
-              <div className="absolute bottom-0 left-1/2 -translate-x-1/2 -mb-6 bg-primary rounded-full p-4">
+              <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 bg-primary rounded-full p-4 shadow-md">
                 <span className="text-xl font-bold text-primary-foreground">&lt;/&gt;</span>
               </div>
             </div>
