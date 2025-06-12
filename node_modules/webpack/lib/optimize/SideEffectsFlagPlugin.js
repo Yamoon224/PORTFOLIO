@@ -105,7 +105,9 @@ class SideEffectsFlagPlugin {
 							}
 							const hasSideEffects = SideEffectsFlagPlugin.moduleHasSideEffects(
 								resolveData.relativePath,
-								sideEffects,
+								/** @type {string | boolean | string[] | undefined} */ (
+									sideEffects
+								),
 								/** @type {CacheItem} */ (cache)
 							);
 							module.factoryMeta.sideEffectFree = !hasSideEffects;
@@ -145,7 +147,8 @@ class SideEffectsFlagPlugin {
 										if (
 											!parser.isPure(
 												statement.expression,
-												/** @type {Range} */ (statement.range)[0]
+												/** @type {Range} */
+												(statement.range)[0]
 											)
 										) {
 											sideEffectsStatement = statement;
@@ -157,7 +160,8 @@ class SideEffectsFlagPlugin {
 										if (
 											!parser.isPure(
 												statement.test,
-												/** @type {Range} */ (statement.range)[0]
+												/** @type {Range} */
+												(statement.range)[0]
 											)
 										) {
 											sideEffectsStatement = statement;
@@ -193,7 +197,8 @@ class SideEffectsFlagPlugin {
 										if (
 											!parser.isPure(
 												statement.discriminant,
-												/** @type {Range} */ (statement.range)[0]
+												/** @type {Range} */
+												(statement.range)[0]
 											)
 										) {
 											sideEffectsStatement = statement;
@@ -216,9 +221,9 @@ class SideEffectsFlagPlugin {
 									case "ExportDefaultDeclaration":
 										if (
 											!parser.isPure(
-												/** @type {TODO} */
-												(statement.declaration),
-												/** @type {Range} */ (statement.range)[0]
+												statement.declaration,
+												/** @type {Range} */
+												(statement.range)[0]
 											)
 										) {
 											sideEffectsStatement = statement;

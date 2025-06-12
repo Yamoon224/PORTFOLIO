@@ -57,6 +57,7 @@ const memoize = require("./util/memoize");
 /** @typedef {import("../declarations/WebpackOptions").Mode} Mode */
 /** @typedef {import("../declarations/WebpackOptions").ResolveOptions} ResolveOptions */
 /** @typedef {import("../declarations/WebpackOptions").WebpackOptionsNormalized} WebpackOptions */
+/** @typedef {import("../declarations/WebpackOptions").NoParse} NoParse */
 /** @typedef {import("./ChunkGraph")} ChunkGraph */
 /** @typedef {import("./Compiler")} Compiler */
 /** @typedef {import("./Dependency").UpdateHashContext} UpdateHashContext */
@@ -80,11 +81,13 @@ const memoize = require("./util/memoize");
 /** @typedef {import("./ModuleTypeConstants").JavaScriptModuleTypes} JavaScriptModuleTypes */
 /** @typedef {import("./NormalModuleFactory")} NormalModuleFactory */
 /** @typedef {import("./NormalModuleFactory").ResourceDataWithData} ResourceDataWithData */
+/** @typedef {import("./NormalModuleFactory").ResourceSchemeData} ResourceSchemeData */
 /** @typedef {import("./Parser")} Parser */
 /** @typedef {import("./Parser").PreparsedAst} PreparsedAst */
 /** @typedef {import("./RequestShortener")} RequestShortener */
 /** @typedef {import("./ResolverFactory").ResolveContext} ResolveContext */
 /** @typedef {import("./ResolverFactory").ResolverWithOptions} ResolverWithOptions */
+/** @typedef {import("./ResolverFactory").ResolveRequest} ResolveRequest */
 /** @typedef {import("./RuntimeTemplate")} RuntimeTemplate */
 /** @typedef {import("./logging/Logger").Logger} WebpackLogger */
 /** @typedef {import("./serialization/ObjectMiddleware").ObjectDeserializerContext} ObjectDeserializerContext */
@@ -92,7 +95,7 @@ const memoize = require("./util/memoize");
 /** @typedef {import("./util/Hash")} Hash */
 /** @typedef {import("./util/fs").InputFileSystem} InputFileSystem */
 /** @typedef {import("./util/runtime").RuntimeSpec} RuntimeSpec */
-/** @typedef {import("./util/createHash").Algorithm} Algorithm */
+/** @typedef {import("../declarations/WebpackOptions").HashFunction} HashFunction */
 /** @typedef {import("./util/identifier").AssociatedObjectForCache} AssociatedObjectForCache */
 /**
  * @template T
@@ -249,7 +252,7 @@ makeSerializable(
  * @property {string} rawRequest request without resolving
  * @property {LoaderItem[]} loaders list of loaders
  * @property {string} resource path + query of the real resource
- * @property {TODO=} resourceResolveData resource resolve data
+ * @property {(ResourceSchemeData & Partial<ResolveRequest>)=} resourceResolveData resource resolve data
  * @property {string} context context directory for resolving
  * @property {string=} matchResource path + query of the matched resource (virtual)
  * @property {Parser} parser the parser used
@@ -586,12 +589,14 @@ class NormalModule extends Module {
 	 * @param {Compilation} compilation the compilation
 	 * @param {InputFileSystem} fs file system from reading
 	 * @param {NormalModuleCompilationHooks} hooks the hooks
-	 * @returns {import("../declarations/LoaderContext").NormalModuleLoaderContext<T>} loader context
+	 * @returns {import("../declarations/LoaderContext").LoaderContext<T>} loader context
 	 */
 	_createLoaderContext(resolver, options, compilation, fs, hooks) {
 		const { requestShortener } = compilation.runtimeTemplate;
 		const getCurrentLoaderName = () => {
-			const currentLoader = this.getCurrentLoader(loaderContext);
+			const currentLoader = this.getCurrentLoader(
+				/** @type {LoaderContext<EXPECTED_ANY>} */ (loaderContext)
+			);
 			if (!currentLoader) return "(not in loader scope)";
 			return requestShortener.shorten(currentLoader.loader);
 		};
@@ -600,13 +605,22 @@ class NormalModule extends Module {
 		 */
 		const getResolveContext = () => ({
 			fileDependencies: {
-				add: d => /** @type {TODO} */ (loaderContext).addDependency(d)
+				add: d =>
+					/** @type {LoaderContext<EXPECTED_ANY>} */ (
+						loaderContext
+					).addDependency(d)
 			},
 			contextDependencies: {
-				add: d => /** @type {TODO} */ (loaderContext).addContextDependency(d)
+				add: d =>
+					/** @type {LoaderContext<EXPECTED_ANY>} */ (
+						loaderContext
+					).addContextDependency(d)
 			},
 			missingDependencies: {
-				add: d => /** @type {TODO} */ (loaderContext).addMissingDependency(d)
+				add: d =>
+					/** @type {LoaderContext<EXPECTED_ANY>} */ (
+						loaderContext
+					).addMissingDependency(d)
 			}
 		});
 		const getAbsolutify = memoize(() =>
@@ -649,13 +663,13 @@ class NormalModule extends Module {
 					? getContextifyInContext()(request)
 					: getContextify()(context, request),
 			/**
-			 * @param {(string | typeof import("./util/Hash"))=} type type
+			 * @param {HashFunction=} type type
 			 * @returns {Hash} hash
 			 */
 			createHash: type =>
 				createHash(
 					type ||
-						/** @type {Algorithm} */
+						/** @type {HashFunction} */
 						(compilation.outputOptions.hashFunction)
 				)
 		};
@@ -667,7 +681,9 @@ class NormalModule extends Module {
 			 * @returns {T} options
 			 */
 			getOptions: schema => {
-				const loader = this.getCurrentLoader(loaderContext);
+				const loader = this.getCurrentLoader(
+					/** @type {LoaderContext<EXPECTED_ANY>} */ (loaderContext)
+				);
 
 				let { options } = /** @type {LoaderItem} */ (loader);
 
@@ -727,7 +743,9 @@ class NormalModule extends Module {
 				);
 			},
 			getLogger: name => {
-				const currentLoader = this.getCurrentLoader(loaderContext);
+				const currentLoader = this.getCurrentLoader(
+					/** @type {LoaderContext<EXPECTED_ANY>} */ (loaderContext)
+				);
 				return compilation.getLogger(() =>
 					[currentLoader && currentLoader.loader, name, this.identifier()]
 						.filter(Boolean)
@@ -803,7 +821,7 @@ class NormalModule extends Module {
 			webpack: true,
 			sourceMap: Boolean(this.useSourceMap),
 			mode: options.mode || "production",
-			hashFunction: /** @type {TODO} */ (options.output.hashFunction),
+			hashFunction: /** @type {string} */ (options.output.hashFunction),
 			hashDigest: /** @type {string} */ (options.output.hashDigest),
 			hashDigestLength: /** @type {number} */ (options.output.hashDigestLength),
 			hashSalt: /** @type {string} */ (options.output.hashSalt),
@@ -815,18 +833,19 @@ class NormalModule extends Module {
 
 		Object.assign(loaderContext, options.loader);
 
+		// After `hooks.loader.call` is called, the loaderContext is typed as LoaderContext<EXPECTED_ANY>
 		hooks.loader.call(
 			/** @type {LoaderContext<EXPECTED_ANY>} */
 			(loaderContext),
 			this
 		);
 
-		return loaderContext;
+		return /** @type {LoaderContext<EXPECTED_ANY>} */ (loaderContext);
 	}
 
 	// TODO remove `loaderContext` in webpack@6
 	/**
-	 * @param {TODO} loaderContext loader context
+	 * @param {LoaderContext<EXPECTED_ANY>} loaderContext loader context
 	 * @param {number} index index
 	 * @returns {LoaderItem | null} loader
 	 */
@@ -997,7 +1016,7 @@ class NormalModule extends Module {
 				loaders: this.loaders,
 				context: loaderContext,
 				/**
-				 * @param {LoaderContext<TODO>} loaderContext the loader context
+				 * @param {LoaderContext<EXPECTED_ANY>} loaderContext the loader context
 				 * @param {string} resourcePath the resource Path
 				 * @param {(err: Error | null, result?: string | Buffer) => void} callback callback
 				 */
@@ -1079,7 +1098,7 @@ class NormalModule extends Module {
 	}
 
 	/**
-	 * @param {TODO} rule rule
+	 * @param {Exclude<NoParse, EXPECTED_ANY[]>} rule rule
 	 * @param {string} content content
 	 * @returns {boolean} result
 	 */
@@ -1097,7 +1116,7 @@ class NormalModule extends Module {
 	}
 
 	/**
-	 * @param {TODO} noParseRule no parse rule
+	 * @param {undefined | NoParse} noParseRule no parse rule
 	 * @param {string} request request
 	 * @returns {boolean} check if module should not be parsed, returns "true" if the module should !not! be parsed, returns "false" if the module !must! be parsed
 	 */
@@ -1132,7 +1151,7 @@ class NormalModule extends Module {
 	 */
 	_initBuildHash(compilation) {
 		const hash = createHash(
-			/** @type {Algorithm} */
+			/** @type {HashFunction} */
 			(compilation.outputOptions.hashFunction)
 		);
 		if (this._source) {
@@ -1661,7 +1680,7 @@ class NormalModule extends Module {
 
 	/**
 	 * @param {ObjectDeserializerContext} context context
-	 * @returns {TODO} Module
+	 * @returns {NormalModule} module
 	 */
 	static deserialize(context) {
 		const obj = new NormalModule({

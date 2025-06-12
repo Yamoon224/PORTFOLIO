@@ -24,7 +24,7 @@ const processAsyncTree = require("./util/processAsyncTree");
 /** @typedef {import("./logging/Logger").Logger} Logger */
 /** @typedef {import("./serialization/ObjectMiddleware").ObjectDeserializerContext} ObjectDeserializerContext */
 /** @typedef {import("./serialization/ObjectMiddleware").ObjectSerializerContext} ObjectSerializerContext */
-/** @typedef {typeof import("./util/Hash")} Hash */
+/** @typedef {import("../declarations/WebpackOptions").HashFunction} HashFunction */
 /** @typedef {import("./util/fs").IStats} IStats */
 /** @typedef {import("./util/fs").InputFileSystem} InputFileSystem */
 /** @typedef {import("./util/fs").PathLike} PathLike */
@@ -708,7 +708,6 @@ class SnapshotOptimization {
 					};
 				}
 				this._map.set(path, newOptimizationEntry);
-				continue;
 			} else {
 				optimizationEntries.add(optimizationEntry);
 			}
@@ -742,7 +741,6 @@ class SnapshotOptimization {
 							continue optimizationEntriesLabel;
 						}
 						nonSharedFiles.add(path);
-						continue;
 					}
 				}
 				if (nonSharedFiles.size === 0) {
@@ -1058,7 +1056,7 @@ class FileSystemInfo {
 	 * @param {Iterable<string | RegExp>=} options.managedPaths paths that are only managed by a package manager
 	 * @param {Iterable<string | RegExp>=} options.immutablePaths paths that are immutable
 	 * @param {Logger=} options.logger logger used to log invalid snapshots
-	 * @param {string | Hash=} options.hashFunction the hash function to use
+	 * @param {HashFunction=} options.hashFunction the hash function to use
 	 */
 	constructor(
 		fs,
